@@ -1,0 +1,23 @@
+# CDK
+cdk.out/
+cdk.context.json
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# OS
+.DS_Store

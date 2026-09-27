@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, test and synth
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CDK_CLI_VERSION: 2.1143.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff
+        run: |
+          uv run ruff check
+          uv run ruff format --check
+
+      - name: Pytest
+        run: uv run pytest
+
+      # Dummy context only. No AWS credentials are configured in this job.
+      - name: cdk synth (cdk-nag gate)
+        run: |
+          npx --yes "aws-cdk@${CDK_CLI_VERSION}" synth --quiet \
+            -c account=123456789012 \
+            -c region=us-east-1 \
+            -c repository=example-org/cdk-python-nag-pipeline-lab \
+            -c connection_arn=arn:aws:codeconnections:us-east-1:123456789012:connection/00000000-0000-0000-0000-000000000000
