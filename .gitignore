@@ -21,3 +21,9 @@ credentials.json
 
 # OS
 .DS_Store
+
+# Tools
+styles/
+.firecrawl/
+.claude-flow/
+.claude/proven-config*

@@ -3,7 +3,9 @@
 import shlex
 
 from aws_cdk import Environment, RemovalPolicy, Stack, Stage, pipelines
+from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_codepipeline as codepipeline
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_s3 as s3
 from constructs import Construct
@@ -13,6 +15,17 @@ from service.service_stack import ServiceStack
 
 CDK_CLI_VERSION = "2.1143.0"
 UV_VERSION = "0.12.19"
+# Build control the asset publishing role never needs. CDK Pipelines grants
+# StartBuild on every project, which would let that role run the self-mutation
+# project, and its deploy access, with overridden commands.
+BUILD_CONTROL = [
+    "codebuild:StartBuild",
+    "codebuild:StartBuildBatch",
+    "codebuild:RetryBuild",
+    "codebuild:RetryBuildBatch",
+    "codebuild:StopBuild",
+    "codebuild:StopBuildBatch",
+]
 
 
 class ServiceStage(Stage):
@@ -90,7 +103,7 @@ class PipelineStack(Stack):
                 install_commands=[f"pip install uv=={UV_VERSION}", "uv sync --frozen"],
                 commands=[
                     "uv run pytest",
-                    f"npx aws-cdk@{CDK_CLI_VERSION} synth {context_args}",
+                    f"npx --yes aws-cdk@{CDK_CLI_VERSION} synth {context_args}",
                 ],
             ),
         )
@@ -102,6 +115,37 @@ class PipelineStack(Stack):
             pre=[pipelines.ManualApprovalStep("PromoteToProd")],
         )
 
+        # API Gateway logging is one setting per account and region. It lives in
+        # this stack, deployed once, so the Dev and Prod stages do not both own it.
+        self.api_logging_role = iam.Role(
+            self,
+            "ApiGatewayLoggingRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+                )
+            ],
+        )
+        apigw.CfnAccount(
+            self,
+            "ApiGatewayAccount",
+            cloud_watch_role_arn=self.api_logging_role.role_arn,
+        )
+
         # The pipeline's roles and projects only exist after build_pipeline().
         self.pipeline.build_pipeline()
+
+        # CDK Pipelines grants the legacy codestar-connections action only. AWS
+        # documents codeconnections:UseConnection as well for the same connection.
+        self.pipeline.pipeline.role.add_to_principal_policy(
+            iam.PolicyStatement(
+                actions=["codeconnections:UseConnection"],
+                resources=[connection_arn],
+            )
+        )
+        assets_role = self.pipeline.node.find_child("Assets").node.find_child("FileRole")
+        assets_role.add_to_principal_policy(
+            iam.PolicyStatement(effect=iam.Effect.DENY, actions=BUILD_CONTROL, resources=["*"])
+        )
         nag_suppressions.apply_to_pipeline(self)
