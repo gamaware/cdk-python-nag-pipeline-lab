@@ -104,9 +104,14 @@ def _statements(template: Template, role_prefix: str) -> list[dict]:
 def test_asset_role_cannot_start_or_stop_builds(template):
     denies = [s for s in _statements(template, "PipelineAssetsFileRole") if s["Effect"] == "Deny"]
     assert len(denies) == 1
-    assert {"codebuild:StartBuild", "codebuild:RetryBuild", "codebuild:StartBuildBatch"} <= set(
-        denies[0]["Action"]
-    )
+    assert set(denies[0]["Action"]) == {
+        "codebuild:StartBuild",
+        "codebuild:StartBuildBatch",
+        "codebuild:RetryBuild",
+        "codebuild:RetryBuildBatch",
+        "codebuild:StopBuild",
+        "codebuild:StopBuildBatch",
+    }
     assert denies[0]["Resource"] == "*"
 
 

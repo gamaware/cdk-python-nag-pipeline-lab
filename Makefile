@@ -28,7 +28,7 @@ test: ## Template assertions and the cdk-nag gate tests
 synth: ## cdk synth with example context; fails on any unacknowledged cdk-nag finding
 	JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1 npx --yes aws-cdk@$(CDK_CLI_VERSION) synth --quiet $(SYNTH_CONTEXT)
 
-verify: lint test synth ## Everything CI runs, offline and without AWS credentials
+verify: lint test synth ## ruff, pytest and cdk synth, no AWS credentials (first run may download the pinned CDK CLI)
 	@echo "verify: all checks passed"
 
 clean: ## Remove caches and the cloud assembly

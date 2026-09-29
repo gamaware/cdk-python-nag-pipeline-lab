@@ -47,7 +47,7 @@ Acceptance criteria:
 - `cdk synth` fails on any AWS Solutions finding that is not acknowledged, and the pipeline stops at `Build`;
 - every acknowledgment names one construct and gives a reason a reviewer can check;
 - the pipeline runs the tests before synth and waits for a manual approval before prod;
-- all of it verifies offline, with no AWS account or credentials.
+- all of it verifies locally with no AWS account or credentials (the first `make synth` may download the pinned CDK CLI).
 
 ## Architecture
 
