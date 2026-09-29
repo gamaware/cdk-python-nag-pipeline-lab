@@ -25,5 +25,3 @@ credentials.json
 # Tools
 styles/
 .firecrawl/
-.claude-flow/
-.claude/proven-config*

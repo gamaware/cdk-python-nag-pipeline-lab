@@ -51,6 +51,8 @@ Acceptance criteria:
 
 ## Architecture
 
+![CDK Pipelines with a cdk-nag gate: synth, promote and run](docs/diagrams/architecture-animated.svg)
+
 ```mermaid
 flowchart LR
     repo[GitHub repository] -->|CodeConnections| source
