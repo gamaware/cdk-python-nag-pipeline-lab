@@ -1,49 +1,67 @@
 name: CI
 
+# Shared checks come from gamaware/.github; `make verify` is the same command contributors run locally.
+# No job receives cloud credentials or an id-token: synth uses example context only.
 on:
   pull_request:
   push:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    name: Lint, test and synth
-    runs-on: ubuntu-latest
+  lint-docs:
+    name: lint-docs
+    uses: gamaware/.github/.github/workflows/lint-docs.yml@01271d87e89c5f893e1e3a92eb6ba4d484286514 # gamaware/.github main (#2)
+    permissions:
+      contents: read # checkout
+    with:
+      vale-paths: README.md CHANGELOG.md SECURITY.md docs
+
+  lint-actions:
+    name: lint-actions
+    uses: gamaware/.github/.github/workflows/lint-actions.yml@01271d87e89c5f893e1e3a92eb6ba4d484286514 # gamaware/.github main (#2)
+    permissions:
+      contents: read # checkout
+
+  secrets:
+    name: secrets
+    uses: gamaware/.github/.github/workflows/secrets.yml@01271d87e89c5f893e1e3a92eb6ba4d484286514 # gamaware/.github main (#2)
+    permissions:
+      contents: read # checkout
+
+  security:
+    name: security
+    uses: gamaware/.github/.github/workflows/security.yml@01271d87e89c5f893e1e3a92eb6ba4d484286514 # gamaware/.github main (#2)
+    permissions:
+      contents: read # checkout
+
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      CDK_CLI_VERSION: 2.1143.0
+    permissions:
+      contents: read # checkout
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          python-version: "3.12"
+          version: "0.12.19"
+          enable-cache: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up Node.js for the CDK CLI
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
 
-      - name: Install dependencies
-        run: uv sync --frozen
-
-      - name: Ruff
-        run: |
-          uv run ruff check
-          uv run ruff format --check
-
-      - name: Pytest
-        run: uv run pytest
-
-      # Dummy context only. No AWS credentials are configured in this job.
-      - name: cdk synth (cdk-nag gate)
-        run: |
-          npx --yes "aws-cdk@${CDK_CLI_VERSION}" synth --quiet \
-            -c account=123456789012 \
-            -c region=us-east-1 \
-            -c repository=example-org/cdk-python-nag-pipeline-lab \
-            -c connection_arn=arn:aws:codeconnections:us-east-1:123456789012:connection/00000000-0000-0000-0000-000000000000
+      - name: Run make verify
+        run: make setup verify

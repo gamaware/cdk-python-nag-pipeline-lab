@@ -25,8 +25,18 @@ ARTIFACT_KEY = (
 BUILD_LOGS = "CodeBuild writes logs and test reports only under its own project name."
 ASSET_ROLE = (
     "CDK Pipelines creates the file asset role before the asset project exists, "
-    "so it grants CodeBuild logs, reports and build control on every CodeBuild "
-    "resource in the account and region. Accepted for a single-purpose lab account."
+    "so it grants CodeBuild logs, reports and build status on every CodeBuild "
+    "resource in the account and region. An explicit deny on the role removes "
+    "starting, retrying and stopping builds, so it cannot run another project."
+)
+API_LOGGING = (
+    "AWS managed policy documented for the account-level API Gateway logging "
+    "role. It lets API Gateway create log groups and streams, write log events "
+    "and read them back (GetLogEvents, FilterLogEvents) on every log group in "
+    "the account; API Gateway names its execution log groups at deploy time."
+)
+API_LOGGING_POLICY = (
+    "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 )
 
 
@@ -45,6 +55,9 @@ def _acknowledge(scope: IConstruct, findings: dict[str, str]) -> None:
 
 
 def apply_to_pipeline(stack) -> None:
+    Validations.of(stack.api_logging_role).acknowledge(
+        Acknowledgment(id=f"AwsSolutions-IAM4[{API_LOGGING_POLICY}]", reason=API_LOGGING)
+    )
     pipeline = stack.pipeline
     logs_arn = f"arn:aws:logs:{stack.region}:{stack.account}:log-group:/aws/codebuild"
     reports_arn = f"arn:aws:codebuild:{stack.region}:{stack.account}:report-group"

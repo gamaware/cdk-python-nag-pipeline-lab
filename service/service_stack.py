@@ -11,9 +11,6 @@ from aws_cdk import aws_s3 as s3
 from constructs import Construct
 
 RUNTIME_DIR = Path(__file__).parent / "runtime"
-API_CLOUDWATCH_POLICY = (
-    "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
-)
 
 
 class ServiceStack(Stack):
@@ -57,7 +54,7 @@ class ServiceStack(Stack):
             self,
             "FunctionRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            description="Least-privilege role for the sample function",
+            description="Scoped role for the sample function: its log group and one bucket",
         )
         function_role.add_to_policy(
             iam.PolicyStatement(
@@ -99,9 +96,8 @@ class ServiceStack(Stack):
             "Api",
             handler=self.function,
             proxy=False,
-            # The logging role is an account and region setting shared by the Dev
-            # and Prod stages, so it is retained when either stack is deleted.
-            cloud_watch_role=True,
+            # The account-level logging role is set once, in the pipeline stack.
+            cloud_watch_role=False,
             deploy_options=apigw.StageOptions(
                 stage_name="v1",
                 access_log_destination=apigw.LogGroupLogDestination(api_logs),
@@ -121,15 +117,6 @@ class ServiceStack(Stack):
                 throttling_burst_limit=10,
                 throttling_rate_limit=5,
             ),
-        )
-        Validations.of(self.api.node.find_child("CloudWatchRole")).acknowledge(
-            Acknowledgment(
-                id=f"AwsSolutions-IAM4[{API_CLOUDWATCH_POLICY}]",
-                reason=(
-                    "AWS managed policy documented for the account-level API "
-                    "Gateway logging role. It grants only CloudWatch Logs writes."
-                ),
-            )
         )
         Validations.of(self.api.deployment_stage).acknowledge(
             Acknowledgment(
