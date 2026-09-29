@@ -1,4 +1,4 @@
-# Security
+# Security policy
 
-This is a personal lab. To report a security issue, open a private advisory through the repository's
-**Security** tab instead of a public issue.
+Report vulnerabilities privately through GitHub security advisories. See the
+[security policy](https://github.com/gamaware/.github/blob/main/SECURITY.md).

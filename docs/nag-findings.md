@@ -47,7 +47,7 @@ finding.
 
 | Finding | Location | Why it is accepted |
 | --- | --- | --- |
-| IAM4 on the API Gateway CloudWatch role | `service/service_stack.py` | documented AWS managed policy, logs write only |
+| IAM4 on the API Gateway logging role | `pipeline/nag_suppressions.py` | documented AWS managed policy; creates, writes and reads log events in the account |
 | APIG3 on the API stage | `service/service_stack.py` | lab cost; IAM auth and throttling are in place |
 | COG4 on the GET method | `service/service_stack.py` | IAM (SigV4) authorization instead of Cognito |
-| IAM5 on CDK Pipelines roles | `pipeline/nag_suppressions.py` | generated grants; each reason states its real scope |
+| IAM5 on CDK Pipelines roles | `pipeline/nag_suppressions.py` | generated grants; each reason states its real scope, and the asset role has an explicit deny on build control |

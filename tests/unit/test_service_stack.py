@@ -71,7 +71,7 @@ def test_function_role_has_no_managed_policies_or_wildcards(template):
         },
     )
     function_role = next(
-        r for r in roles.values() if "Least-privilege" in r["Properties"].get("Description", "")
+        r for r in roles.values() if "Scoped role" in r["Properties"].get("Description", "")
     )
     assert "ManagedPolicyArns" not in function_role["Properties"]
 
@@ -104,3 +104,7 @@ def test_api_stage_has_access_logs_and_tracing(template):
 
 def test_log_groups_have_retention(template):
     template.all_resources_properties("AWS::Logs::LogGroup", {"RetentionInDays": 30})
+
+
+def test_service_does_not_own_the_account_logging_setting(template):
+    template.resource_count_is("AWS::ApiGateway::Account", 0)

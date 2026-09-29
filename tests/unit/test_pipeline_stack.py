@@ -89,3 +89,44 @@ def test_synth_step_runs_tests_before_cdk_synth(template):
     buildspecs = [p["Properties"]["Source"]["BuildSpec"] for p in projects.values()]
     synth = next(spec for spec in buildspecs if "uv run pytest" in spec)
     assert synth.index("uv run pytest") < synth.index("synth -c")
+
+
+def _statements(template: Template, role_prefix: str) -> list[dict]:
+    policies = template.find_resources("AWS::IAM::Policy")
+    return [
+        statement
+        for name, policy in policies.items()
+        if name.startswith(role_prefix)
+        for statement in policy["Properties"]["PolicyDocument"]["Statement"]
+    ]
+
+
+def test_asset_role_cannot_start_or_stop_builds(template):
+    denies = [s for s in _statements(template, "PipelineAssetsFileRole") if s["Effect"] == "Deny"]
+    assert len(denies) == 1
+    assert set(denies[0]["Action"]) == {
+        "codebuild:StartBuild",
+        "codebuild:StartBuildBatch",
+        "codebuild:RetryBuild",
+        "codebuild:RetryBuildBatch",
+        "codebuild:StopBuild",
+        "codebuild:StopBuildBatch",
+    }
+    assert denies[0]["Resource"] == "*"
+
+
+def test_pipeline_role_can_use_the_connection_under_both_prefixes(template):
+    actions = {
+        action
+        for statement in _statements(template, "PipelineRoleDefaultPolicy")
+        if statement["Effect"] == "Allow"
+        for action in (
+            statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+        )
+        if "UseConnection" in action
+    }
+    assert actions == {"codestar-connections:UseConnection", "codeconnections:UseConnection"}
+
+
+def test_api_gateway_logging_setting_is_owned_once_by_the_pipeline_stack(template):
+    template.resource_count_is("AWS::ApiGateway::Account", 1)
